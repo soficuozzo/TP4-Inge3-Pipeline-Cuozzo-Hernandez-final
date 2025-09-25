@@ -1,0 +1,66 @@
+services:
+  db-qa:
+    image: leomorabito02/database:v1.0
+    build:
+      context: ./db
+      dockerfile: Dockerfile
+    container_name: db-app-qa
+    restart: always
+    networks:
+      - app-network-qa
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - db-data-qa:/var/lib/mysql
+    ports:
+      - "${HOST_DB_PORT_QA}:${CONTAINER_DB_PORT}"
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "db-qa", "-u", "root", "-p${DB_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend-qa:
+    image: leomorabito02/backend:v1.0
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend-app-qa
+    restart: always
+    networks:
+      - app-network-qa
+    environment:
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: db-qa
+      DB_PORT: ${CONTAINER_DB_PORT}
+      DB_DATABASE: ${DB_DATABASE}
+    ports:
+      - "${BACKEND_HOST_PORT_QA}:${BACKEND_CONTAINER_PORT}"
+    depends_on:
+      db-qa:
+        condition: service_healthy
+
+  frontend-qa:
+    image: leomorabito02/frontend:v1.0
+    build:
+      context: ./frontend
+    container_name: frontend-app-qa
+    networks:
+      - app-network-qa
+    environment:
+      - VITE_API_TARGET=http://backend-qa:8080
+      - VITE_MODE=qa
+    ports:
+      - "${FRONTEND_HOST_PORT_QA}:${FRONTEND_CONTAINER_PORT}"
+    depends_on:
+      - backend-qa
+
+volumes:
+  db-data-qa:
+
+networks:
+  app-network-qa:
+    driver: bridge

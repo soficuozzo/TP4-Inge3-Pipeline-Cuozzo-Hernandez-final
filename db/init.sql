@@ -1,0 +1,16 @@
+START TRANSACTION;
+
+
+CREATE DATABASE IF NOT EXISTS databse;
+
+USE databse;
+
+CREATE TABLE IF NOT EXISTS test (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+
+  message VARCHAR(255) NOT NULL
+);
+
+INSERT INTO test (message) VALUES ('Hello World');
+
+COMMIT;

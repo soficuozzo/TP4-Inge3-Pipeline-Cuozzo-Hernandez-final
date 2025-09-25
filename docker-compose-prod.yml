@@ -1,0 +1,66 @@
+services:
+  db-prod:
+    image: leomorabito02/database:v1.0
+    build:
+      context: ./db
+      dockerfile: Dockerfile
+    container_name: db-app-prod
+    restart: always
+    networks:
+      - app-network-prod
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - db-data-prod:/var/lib/mysql
+    ports:
+      - "${HOST_DB_PORT_PROD}:${CONTAINER_DB_PORT}"
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "db-prod", "-u", "root", "-p${DB_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend-prod:
+    image: leomorabito02/backend:v1.0
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend-app-prod
+    restart: always
+    networks:
+      - app-network-prod
+    environment:
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: db-prod
+      DB_PORT: ${CONTAINER_DB_PORT}
+      DB_DATABASE: ${DB_DATABASE}
+    ports:
+      - "${BACKEND_HOST_PORT_PROD}:${BACKEND_CONTAINER_PORT}"
+    depends_on:
+      db-prod:
+        condition: service_healthy
+
+  frontend-prod:
+    image: leomorabito02/frontend:v1.0
+    build:
+      context: ./frontend
+    container_name: frontend-app-prod
+    networks:
+      - app-network-prod
+    environment:
+      - VITE_API_TARGET=http://backend-prod:8080
+      - VITE_MODE=production
+    ports:
+      - "${FRONTEND_HOST_PORT_PROD}:${FRONTEND_CONTAINER_PORT}"
+    depends_on:
+    - backend-prod
+
+volumes:
+  db-data-prod:
+
+networks:
+  app-network-prod:
+    driver: bridge
